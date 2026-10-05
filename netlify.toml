@@ -1,0 +1,260 @@
+const CONFIG_API = {
+generarImagenUrl: "/.netlify/functions/ia-generate",
+whatsappNumero: "5524146182"
+};
+const CATALOGO_PRODUCTOS = [
+{ id: "sudadera_pro", tipo: "ropa", nombre: "Sudadera Hoodie Premium", precio: 650, icon: "🧥", canvasW: 240, canvasH: 260 },
+{ id: "playera_oversize", tipo: "ropa", nombre: "Playera Oversize Streetwear", precio: 350, icon: "👕", canvasW: 250, canvasH: 280 },
+{ id: "gorra_trucker", tipo: "ropa", nombre: "Gorra Trucker Ajustable", precio: 220, icon: "🧢", canvasW: 220, canvasH: 140 },
+{ id: "sticker_vinil", tipo: "item", nombre: "Stickers de Vinil Troquelados x10", precio: 120, icon: "✨", canvasW: 300, canvasH: 300 },
+{ id: "taza_ceramica", tipo: "item", nombre: "Taza de Cerámica Cónica", precio: 180, icon: "☕", canvasW: 320, canvasH: 180 }
+];
+let productoSeleccionado = CATALOGO_PRODUCTOS[0];
+let carrito = [];
+const canvas = new fabric.Canvas('webstore-canvas', {
+width: 240,
+height: 260,
+backgroundColor: 'transparent',
+preserveObjectStacking: true
+});
+function inicializarTienda() {
+const clothingGrid = document.getElementById('clothing-grid');
+const itemsGrid = document.getElementById('items-grid');
+CATALOGO_PRODUCTOS.forEach(prod => {
+const card = document.createElement('div');
+card.className = product-card ${prod.id === productoSeleccionado.id ? 'active' : ''};
+card.id = card-${prod.id};
+card.innerHTML = <div class="product-img-wrapper">${prod.icon}</div> <div class="product-info"> <h4>${prod.nombre}</h4> <p>$${prod.precio.toFixed(2)}</p> </div>;
+card.onclick = () => cambiarProductoBase(prod.id);
+if (prod.tipo === 'ropa') clothingGrid.appendChild(card);
+else itemsGrid.appendChild(card);
+});
+evaluarVisibilidadSelectorTalla();
+actualizarPreciosUI();
+cargarHistorialCarritoLocalStorage();
+}
+function cambiarProductoBase(id) {
+document.querySelectorAll('.product-card').forEach(c => c.classList.remove('active'));
+document.getElementById(card-${id}).classList.add('active');
+productoSeleccionado = CATALOGO_PRODUCTOS.find(p => p.id === id);
+document.getElementById('product-mockup-icon').innerText = productoSeleccionado.icon;
+canvas.setWidth(productoSeleccionado.canvasW);
+canvas.setHeight(productoSeleccionado.canvasH);
+canvas.clear();
+evaluarVisibilidadSelectorTalla();
+actualizarPreciosUI();
+actualizarPanelCapas();
+}
+function evaluarVisibilidadSelectorTalla() {
+const sizeGroup = document.getElementById('size-selector-group');
+if (productoSeleccionado.tipo === 'ropa') {
+sizeGroup.style.display = 'flex';
+} else {
+sizeGroup.style.display = 'none';
+}
+}
+function actualizarPreciosUI() {
+document.getElementById('current-product-price').innerText = $${productoSeleccionado.precio.toFixed(2)} MXN;
+}
+canvas.on('object:added', () => actualizarPanelCapas());
+canvas.on('object:modified', () => actualizarPanelCapas());
+canvas.on('object:removed', () => actualizarPanelCapas());
+canvas.on('selection:created', (e) => manejarBarraContextual(e.target));
+canvas.on('selection:updated', (e) => manejarBarraContextual(e.target));
+canvas.on('selection:cleared', () => OcultarBarraContextual());
+function agregarTexto() {
+const txt = new fabric.IText('Diseño Altimonar', { left: 40, top: 50, fontFamily: 'Impact', fill: '#ffffff', fontSize: 24 });
+canvas.add(txt);
+canvas.setActiveObject(txt);
+}
+function agregarForma(tipo) {
+let forma;
+const baseConf = { left: 60, top: 60, fill: '#6366f1', width: 80, height: 80, radius: 40 };
+if(tipo === 'circle') forma = new fabric.Circle(baseConf);
+if(tipo === 'rect') forma = new fabric.Rect(baseConf);
+canvas.add(forma);
+canvas.setActiveObject(forma);
+}
+function toggleModoDibujo() {
+canvas.isDrawingMode = !canvas.isDrawingMode;
+const btn = document.getElementById('btn-brush');
+if(canvas.isDrawingMode) {
+canvas.freeDrawingBrush.width = 4;
+canvas.freeDrawingBrush.color = '#6366f1';
+btn.innerText = "✏️ Trazando...";
+btn.style.borderColor = "var(--accent)";
+} else {
+btn.innerText = "🖌️ Trazar Libre";
+btn.style.borderColor = "var(--border)";
+}
+}
+function cargarImagenLocal(e) {
+const reader = new FileReader();
+reader.onload = function(evt) {
+fabric.Image.fromURL(evt.target.result, (img) => {
+img.scaleToWidth(140);
+img.set({ left: 30, top: 30 });
+canvas.add(img);
+canvas.setActiveObject(img);
+});
+};
+reader.readAsDataURL(e.target.files);
+}
+function aplicarFiltro(tipo) {
+const obj = canvas.getActiveObject();
+if (!obj || obj.type !== 'image') return;
+let f = (tipo === 'Grayscale') ? new fabric.Image.filters.Grayscale() : new fabric.Image.filters.Invert();
+obj.filters.push(f);
+obj.applyFilters();
+canvas.renderAll();
+}
+function eliminarFondoChroma() {
+const obj = canvas.getActiveObject();
+if (!obj || obj.type !== 'image') return alert("Selecciona un gráfico subido para aislar su canal alfa.");
+obj.filters.push(new fabric.Image.filters.RemoveColor({ color: '#ffffff', distance: 0.15 }));
+obj.applyFilters();
+canvas.renderAll();
+}
+function crearMaskRecorte() {
+const items = canvas.getActiveObjects();
+if(items.length !== 2) return alert("Selecciona el vector contenedor y la imagen de fondo.");
+const forma = items.find(o => o.type !== 'image');
+const img = items.find(o => o.type === 'image');
+if(!forma || !img) return alert("Estructura inválida.");
+img.set({ clipPath: forma, left: forma.left, top: forma.top });
+canvas.discardActiveObject();
+canvas.renderAll();
+}
+function crearLineaSangradoAutomática() {
+const obj = canvas.getActiveObject();
+if(!obj) return;
+obj.clone((clon) => {
+clon.set({ stroke: '#ffffff', strokeWidth: 12, fill: '#ffffff', strokeLineJoin: 'round', strokeLineCap: 'round', selectable: false, evented: false });
+canvas.add(clon);
+clon.sendToBack();
+canvas.renderAll();
+});
+}
+function ejecutarGeneracionIA() {
+const p = document.getElementById('webstore-ai-prompt').value;
+if(!p) return alert("Describe tu arte.");
+fetch(CONFIG_API.generarImagenUrl, { method: 'POST', body: JSON.stringify({ prompt: p }) })
+.then(res => res.json()).then(data => {
+if(data.success && data.base64) {
+fabric.Image.fromURL('data:image/png;base64,' + data.base64, (img) => { img.scaleToWidth(150); canvas.add(img); canvas.renderAll(); });
+} else { throw new Error(); }
+}).catch(() => {
+fabric.Image.fromURL('picsum.photos', (img) => { img.set({left:40,top:40}); canvas.add(img); canvas.renderAll(); });
+});
+}
+function actualizarPanelCapas() {
+const lista = document.getElementById('webstore-layers-list');
+lista.innerHTML = '';
+canvas.getObjects().slice().reverse().forEach((obj, idx) => {
+const item = document.createElement('div');
+item.className = 'layer-item';
+item.innerHTML = <span>Capa [${obj.type}]</span>;
+item.onclick = () => { canvas.setActiveObject(obj); canvas.renderAll(); };
+lista.appendChild(item);
+});
+}
+function moverCapa(dir) {
+const obj = canvas.getActiveObject();
+if(!obj) return;
+if(dir === 'traer') obj.bringForward(); else obj.sendBackwards();
+canvas.renderAll();
+actualizarPanelCapas();
+}
+function eliminarObjetoSeleccionado() {
+const obj = canvas.getActiveObject();
+if(obj) { canvas.remove(obj); canvas.discardActiveObject(); canvas.renderAll(); }
+}
+function manejarBarraContextual(obj) {
+const t = document.getElementById('webstore-quick-toolbar');
+const c = document.getElementById('wrapper-canvas-webstore');
+const b = obj.getBoundingRect();
+t.style.display = 'flex';
+t.style.left = (c.offsetLeft + b.left + (b.width/2) - 90) + 'px';
+t.style.top = (c.offsetTop + b.top - 40) + 'px';
+}
+function OcultarBarraContextual() { document.getElementById('webstore-quick-toolbar').style.display = 'none'; }
+// --- LÓGICA DE CARRITO Y WHATSAPP ---
+function toggleCartModal(abrir) {
+const panel = document.getElementById('cart-slide-panel');
+if (abrir) panel.classList.add('open');
+else panel.classList.remove('open');
+}
+function agregarAlCarrito() {
+const renderDiseno = canvas.toDataURL({ format: 'png', multiplier: 2 });
+const selectTalla = document.getElementById('product-size').value;
+const tallaElegida = (productoSeleccionado.tipo === 'ropa') ? selectTalla : 'N/A';
+const itemPedido = {
+cartId: "ITEM_" + Date.now(),
+nombre: productoSeleccionado.nombre,
+precio: productoSeleccionado.precio,
+icon: productoSeleccionado.icon,
+talla: tallaElegida,
+preview: renderDiseno
+};
+carrito.push(itemPedido);
+localStorage.setItem('altimonar_cart', JSON.stringify(carrito));
+actualizarCarritoUI();
+toggleCartModal(true);
+}
+function eliminarDelCarrito(cartId) {
+carrito = granny = carrito.filter(item => item.cartId !== cartId);
+localStorage.setItem('altimonar_cart', JSON.stringify(carrito));
+actualizarCarritoUI();
+}
+function actualizarCarritoUI() {
+const container = document.getElementById('cart-items-container');
+container.innerHTML = '';
+let total = 0;
+carrito.forEach(item => {
+total += item.precio;
+const div = document.createElement('div');
+div.className = 'cart-item';
+div.innerHTML = <img class="cart-item-preview" src="${item.preview}"> <div class="cart-item-info"> <h5>${item.nombre} ${item.talla !== 'N/A' ?(${item.talla}): ''}</h5> <p>$${item.precio.toFixed(2)} MXN</p> </div> <button onclick="eliminarDelCarrito('${item.cartId}')" style="width:auto; padding:4px 8px;" class="danger">✕</button>;
+container.appendChild(div);
+});
+document.getElementById('global-cart-count').innerText = carrito.length;
+document.getElementById('cart-total-price').innerText = $${total.toFixed(2)} MXN;
+}
+function cargarHistorialCarritoLocalStorage() {
+const guardado = localStorage.getItem('altimonar_cart');
+if (guardado) {
+carrito = JSON.parse(guardado);
+actualizarCarritoUI();
+}
+}
+function procesarCheckoutWhatsApp() {
+if (carrito.length === 0) return alert("Tu carrito de compras está vacío.");
+let mensaje = 🔥 *NUEVA ORDEN DESDE LA WEBSTORE - ALTIMONAR FACTORY* 🔥\n\n;
+mensaje += Hola, me gustaría completar el pago y enviar a producción el diseño personalizado de los siguientes artículos:\n\n;
+let total = 0;
+carrito.forEach((item, idx) => {
+total += item.precio;
+mensaje += *${idx + 1}. ${item.icon} ${item.nombre}*\n;
+if (item.talla !== 'N/A') {
+mensaje +=    • *Talla:* ${item.talla}\n;
+}
+mensaje +=    • *Subtotal:* $${item.precio.toFixed(2)} MXN\n;
+mensaje +=    • _(Nota: He adjuntado el render gráfico de impresión de este artículo en este chat)_\n\n;
+});
+mensaje += ----------------------------------\n;
+mensaje += 💰 *TOTAL A PAGAR:* $${total.toFixed(2)} MXN\n;
+mensaje += ----------------------------------\n\n;
+mensaje += ⚡ _Por favor indícame los métodos de depósito o transferencia para procesar mi pedido._;
+const mensajeCodificado = encodeURIComponent(mensaje);
+const urlWhatsApp = https://whatsapp.com{CONFIG_API.whatsappNumero}&text=${mensajeCodificado};
+window.open(urlWhatsApp, '_blank');
+carrito = [];
+localStorage.removeItem('altimonar_cart');
+actualizarCarritoUI();
+toggleCartModal(false);
+}
+window.onload = inicializarTienda;
+
+
+
+<FollowUp>
