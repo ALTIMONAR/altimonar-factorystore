@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Altimonar Factory | Webstore & Personalización Profesional</title>
+  <!-- Fabric.js para el motor de diseño en las prendas -->
+  <script src="https://cloudflare.com"></script>
+  <!-- Google Fonts -->
+  <link href="https://googleapis.com" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0c0c0e;
+      --panel-bg: rgba(20, 20, 25, 0.88);
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --text: #f4f4f5;
+      --text-muted: #a1a1aa;
+      --border: rgba(255, 255, 255, 0.06);
+      --danger: #ef4444;
+      --success: #22c55e;
+      --card-bg: #141419;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text);
+      overflow-x: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Barra de Navegación de la Webstore */
+    .navbar {
+      height: 64px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 30px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: 1px;
+      background: linear-gradient(45deg, #ffffff, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      cursor: pointer;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .cart-btn {
+      position: relative;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 13px;
+    }
+
+    .cart-count {
+      background: var(--danger);
+      color: white;
+      border-radius: 50%;
+      padding: 2px 6px;
+      font-size: 11px;
+      margin-left: 6px;
+    }
+
+    /* Contenedor Principal Split */
+    .main-container {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 64px);
+      overflow: hidden;
+    }
+
+    /* Módulo Catálogo (Izquierda) */
+    .catalog-section {
+      width: 35%;
+      border-right: 1px solid var(--border);
+      background: var(--bg-dark);
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 16px;
+    }
+
+    .product-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .product-card:hover, .product-card.active {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px -10px var(--accent);
+    }
+
+    .product-img-wrapper {
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+    }
+
+    .product-info h4 {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .product-info p {
+      font-size: 12px;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* Módulo Personalizador e Impresión (Centro) */
+    .editor-section {
+      width: 40%;
+      background: #09090b;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      border-right: 1px solid var(--border);
+    }
+
+    /* Previsualización del mock de ropa detrás del Canvas */
+    .mockup-overlay {
+      position: absolute;
+      font-size: 260px;
+      opacity: 0.08;
+      z-index: 1;
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+
+    .canvas-wrapper-webstore {
+      position: relative;
+      z-index: 2;
+      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.7);
+      border: 1px solid var(--border);
+      background: transparent;
+    }
+
+    /* Módulo Panel de Control de Diseño (Derecha) */
+    .control-section {
+      width: 25%;
+      background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Elementos UI Globales */
+    .tool-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    button {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      flex: 1;
+    }
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    button.primary {
+      background: var(--accent);
+      border-color: transparent;
+    }
+
+    button.primary:hover { background: var(--accent-hover); }
+    button.danger { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); color: var(--danger); }
+    button.danger:hover { background: var(--danger); color: white; }
+    
+    button.whatsapp-btn {
+      background: #25d366;
+      border-color: transparent;
+      color: #ffffff;
+      font-weight: 600;
+    }
+    button.whatsapp-btn:hover { background: #20ba5a; }
+
+    input[type="text"], select, input[type="number"] {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      width: 100%;
+      outline: none;
+    }
+
+    input[type="text"]:focus, select:focus { border-color: var(--accent); }
+
+    input[type="color"] {
+      -webkit-appearance: none;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      cursor: pointer;
+      background: transparent;
+    }
+
+    input[type="color"]::-webkit-color-swatch { border: 1px solid var(--border); border-radius: 8px; }
+
+    label { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+
+    /* Ventana Flotante del Carrito (Modal) */
+    .cart-modal {
+      position: fixed;
+      top: 0;
+      right: -400px;
+      width: 400px;
+      height: 100vh;
+      background: #141419;
+      border-left: 1px solid var(--border);
+      box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+      z-index: 200;
+      transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .cart-modal.open { right: 0; }
+
+    .cart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+
+    .cart-items-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .cart-item {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .cart-item-preview {
+      width: 50px;
+      height: 50px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      object-fit: contain;
+    }
+
+    .cart-item-info { flex: 1; }
+    .cart-item-info h5 { font-size: 13px; font-weight: 600; }
+    .cart-item-info p { font-size: 12px; color: var(--accent); font-weight: 700; margin-top: 2px;}
+
+    .cart-footer {
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    /* Barra Contextual Flotante de Acceso Rápido */
+    .contextual-toolbar {
+      position: absolute;
+      background: #191921;
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 4px;
+      display: none;
+      gap: 4px;
+      z-index: 100;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+
+    .contextual-toolbar button { padding: 4px 8px; font-size: 11px; background: transparent; border: none; }
+    .contextual-toolbar button:hover { background: rgba(255,255,255,0.08); }
+
+    /* Barra de herramientas de Atributos de capas e Historial */
+    .layer-container {
+      background: rgba(0,0,0,0.2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      max-height: 100px;
+      overflow-y: auto;
+    }
+
+    .layer-item {
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+    .layer-item:hover { background: rgba(255,255,255,0.02); }
+
+    ::-webkit-scrollbar { width: 4px; }
+
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
